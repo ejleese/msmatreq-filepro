@@ -1,0 +1,14 @@
+:'##############################################################:'# 2014-02-25 ejl add machine shop material request:
+:@rn ne "1":end:
+:@pm eq "" or @pw eq "":end:
+:                                  'file we'll output results to:declare tmpfile; tmpfile=@pm:
+:                'getenv("QUERY_STRING") doesn't work here::
+:                'get filename where parameter string is located:declare paramfile; paramfile=@pw:
+:'get request parameters::
+:'create record and store values::
+:'pass response back::
+::zz=open((tmpfile),"wc0t"):
+::aa=writeline(zz,"Request Submitted!"<@td<@tm):
+::aa=close(zz); sync:
+:'debug:'system "cat"<paramfile<"| mutt -s prc.addReq ericl@borisch.com":
+E::end:
