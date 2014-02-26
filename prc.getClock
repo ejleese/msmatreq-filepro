@@ -1,0 +1,21 @@
+:'##############################################################:'#    20080227 dgl    Get Clock # information:
+:'#                    Thru getClock.php, return Employee name:'#                    Active Clock #s only:
+:@rn ne "1":Exit:
+::declare process_id(8,.0), rec_no(8,.0), d_str:
+::process_id = @pm:
+::of = "/appl/fpmerge/" { process_id { ".getClock.pout"  ;'  Output html:
+:'##############################################################:'#    Post Information:
+::rec_no = @px:
+:rec_no lt "100":Goto Err:
+::lookup plk = person  K=(rec_no) i=A -BX:
+:not plk:Goto Err:
+:instr("TERM MEDI LAID INAC ", plk(30), "1") gt "0":Goto Err:
+::d_str = plk(2) < plk(1):
+::Goto WrtOut:
+Err:'##############################################################:d_str = "?":
+WrtOut:'##############################################################:'#    Write results output HTML:
+::EXPORT ASCII out = (of) r=\n f=:
+::out(1) = d_str  ;  out(2) = "":
+::write out:
+::close out:
+::End:
