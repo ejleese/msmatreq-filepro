@@ -1,14 +1,82 @@
 :'##############################################################:'# 2014-02-25 ejl add machine shop material request:
-:@rn ne "1":end:
-:@pm eq "" or @pw eq "":end:
+:@rn ne "1":msg="not standing on record 1 ?? see IS!"; goto writeit:
+:@pm eq "" or @pw eq "":msg="filename params not passed! see IS!"; goto writeit:
 :                                  'file we'll output results to:declare tmpfile; tmpfile=@pm:
+:                                'return message text:declare msg:
+::declare clk(4,.0), job(8,.0), trav(9,allup), qty(6,.0), fill(1,yesno), part(20,allup):
+::declare desc        'memo:
 :                'getenv("QUERY_STRING") doesn't work here::
 :                'get filename where parameter string is located:declare paramfile; paramfile=@pw:
-:'get request parameters::
-:'create record and store values::
+:'parse request parameter string::
+:'debug:system "cat"<paramfile<"| mutt -s prc.addReq ericl@borisch.com":
+:'open param file:zz=open((paramfile),"rwt"):
+:'debug:'system "echo"< zz<" | mutt -s prc.addReq ericl@borisch.com":
+:zz lt "0":msg="ERROR cannot open parameter file! see IS!"; goto writeit:
+::declare parms(32000,*):
+:        'are we going to have issues with newlines in memo using readline? maybe not with parms sized above:aa=read(zz,parms):
+:'debug:'system "echo"<aa<"| mutt -s prc.addReq ericl@borisch.com":
+:aa le "0"               'do we need to loop or will one bite get the whole thing?:msg="ERROR blank parameter file. See IS!"; goto writeit 'for now assume we get it all?:
+:        'split param string into separate parameters:gosub splitit:
+:'debug:'system "echo \""<clk<trav<job<part<qty<fill<desc<"\" | mutt -s prc.addReq ericl@borisch.com":
+newrec:'create record and store values:lookup new = msmatreq  r=free  -n:
+:not new:msg="ERROR cannot create new record in msmatreq. See IS!"; goto writeit:
+::new(1)=clk;new(2)=trav;new(3)=job;new(4)=qty;new(5)=fill:
+::new(6)=part:
+::declare recnum;recnum=new(@rn):
+::write new:
+:'write memo field::
+:""{desc{"" eq ""        'no description:goto writeit                'so dont create blank memo record:
+::lookup mem = msmatreq_memo  r=free  -n:
+:not mem:msg="ERROR cannot create new record in msmatreq_memo. See IS!"; goto writeit:
+:'TODO need to convert the %20 etc back to characters first::
+::mem(1)=recnum; mem(2)=desc:
+::write mem:
 :'pass response back::
-::zz=open((tmpfile),"wc0t"):
-::aa=writeline(zz,"Request Submitted!"<@td<@tm):
+writeit:recnum ne ""        'wont get here if there was a file error after getting recnum filled:msg=recnum:
+:""{msg{"" eq ""     'no record number assigned... but why? any other specific errors would bypass this line:msg="ERROR Unspecified Error in posting new Req. See IS! (msmatreq/addReq)"; goto writeit:
+:'open response file:zz=open((tmpfile),"wc0t"):
+:zz lt "0"        'can't open file-no place to write error to.:end              'though could email it to myself...:
+:'just pass back record/request number or error message:aa=writeline(zz,""{msg):
 ::aa=close(zz); sync:
 :'debug:'system "cat"<paramfile<"| mutt -s prc.addReq ericl@borisch.com":
-E::end:
+:'email notice of new req to someone?:'only if successfully added!:
+:mid(msg,"1","6") eq "ERROR"            'req not added. don't email:end:
+:'so now email ppl ?::
+::end:
+splitit:'split parameter string back into separate parameters::
+:' clk(4,.0), trav(9,allup), job(8,.0), qty(6,.0), fill(1,yesno):' desc(memo..), part(20,allup):
+:'aa is # chars in string; parms is string:'^^ assuming entire parm file is read in one line...:
+::declare clkpos(5,.0),jobpos(5,.0),travpos(5,.0),qtypos(5,.0),fillpos(5,.0),descpos(5,.0):
+::declare partpos(5,.0),cachepos(5,.0):
+:'we care about all these parameters being in the string, even if:'they have no value. we need the positions so we know how many chars to bite for the mid command:
+:'first get starting loc of each parameter name::
+::clkpos=instr(parms,"clk="):
+:'these errors are not due to having no value after the '=' in the parameter, but:'are due to malformed/incomplete GET parameter string. should not ever happen:
+:clkpos eq "0":msg="no clock# param found. see IS!"; goto writeit:
+::travpos=instr(parms,"&trav="):
+:travpos eq "0":msg="no trav# param found. see IS!"; goto writeit:
+::jobpos=instr(parms,"&job="):
+:jobpos eq "0":msg="no job# param found. see IS!"; goto writeit:
+::partpos=instr(parms,"&part="):
+:partpos eq "0":msg="no part# param found. see IS!"; goto writeit:
+::qtypos=instr(parms,"&qty="):
+:qtypos eq "0":msg="no qty# param found. see IS!"; goto writeit:
+::fillpos=instr(parms,"&fill="):
+:fillpos eq "0":msg="no fill param found. see IS!"; goto writeit:
+::descpos=instr(parms,"&desc="):
+:descpos eq "0":msg="no description param found. see IS!"; goto writeit:
+::cachepos=instr(parms,"&nocache="):
+:cachepos eq "0":msg="no nocache param found. see IS!"; goto writeit:
+::'offsets are based on length of parameter name/text ie "&trav=" is 6 chars:
+::'now get values for each parameter:
+:        'this one has no "?" or "&" before it due to way it's stored in the file:clk=mid(parms,clkpos+"4",travpos-(clkpos+"4")):
+::trav=mid(parms,travpos+"6",jobpos-(travpos+"6")):
+::job=mid(parms,jobpos+"5",partpos-(jobpos+"5")):
+::part=mid(parms,partpos+"6",qtypos-(partpos+"6")):
+::qty=mid(parms,qtypos+"5",fillpos-(qtypos+"5")):
+::declare filltmp:
+::filltmp=mid(parms,fillpos+"6",descpos-(fillpos+"6")):
+:filltmp eq "true":fill = "Y":
+:filltmp eq "false":fill = "N":
+::desc=mid(parms,descpos+"6",cachepos-(descpos+"6")):
+::return:
