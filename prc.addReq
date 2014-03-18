@@ -8,7 +8,7 @@
 :                'getenv("QUERY_STRING") doesn't work here::
 :                'get filename where parameter string is located:declare paramfile; paramfile=@pw:
 :'parse request parameter string::
-:'debug:system "cat"<paramfile<"| mutt -s prc.addReq ericl@borisch.com":
+:'debug:'system "cat"<paramfile<"| mutt -s prc.addReq ericl@borisch.com":
 :'open param file:zz=open((paramfile),"rwt"):
 :zz lt "0":msg="ERROR cannot open parameter file! see IS!"; goto writeit:
 ::declare parms(32000,*):
@@ -43,7 +43,7 @@ splitit:'split parameter string back into separate parameters::
 :' clk(4,.0), trav(9,allup), job(8,.0), qty(6,.0), fill(1,yesno):' desc(memo..), part(20,allup):
 :'aa is # chars in string; parms is string:'^^ assuming entire parm file is read in one line...:
 ::declare clkpos(5,.0),jobpos(5,.0),travpos(5,.0),qtypos(5,.0),fillpos(5,.0),descpos(5,.0):
-::declare partpos(5,.0):
+::declare partpos(5,.0), cachepos(5,.0):
 :'we care about all these parameters being in the string, even if:'they have no value. we need the positions so we know how many chars to bite for the mid command:
 :'first get starting loc of each parameter name::
 ::clkpos=instr(parms,"clk="):
@@ -58,20 +58,21 @@ splitit:'split parameter string back into separate parameters::
 ::qtypos=instr(parms,"&qty="):
 :qtypos eq "0":msg="no qty# param found. see IS!"; goto writeit:
 ::fillpos=instr(parms,"&fill="):
-:fillpos eq "0"          'if checkbox isn't checked, this isn't passed as a parameter at all...:'do nothing here...:
+:fillpos eq "0":msg="no fill param found. see IS!"; goto writeit:
 ::descpos=instr(parms,"&desc="):
 :descpos eq "0":msg="no description param found. see IS!"; goto writeit:
+::cachepos=instr(parms,"&nocache="):
+:cachepos eq "0":msg="no cache param found. see IS!"; goto writeit:
 ::'offsets are based on length of parameter name/text ie "&trav=" is 6 chars:
 ::'now get values for each parameter:
 :        'this one has no "?" or "&" before it due to way it's stored in the file:clk=mid(parms,clkpos+"4",travpos-(clkpos+"4")):
 ::trav=mid(parms,travpos+"6",jobpos-(travpos+"6")):
 ::job=mid(parms,jobpos+"5",partpos-(jobpos+"5")):
 ::part=mid(parms,partpos+"6",qtypos-(partpos+"6")):
-:fillpos gt "0":qty=mid(parms,qtypos+"5",fillpos-(qtypos+"5")):
-:fillpos eq "0"  'not passed if not checked, so use next parameter:qty=mid(parms,qtypos+"5",descpos-(qtypos+"5")):
+::qty=mid(parms,qtypos+"5",fillpos-(qtypos+"5")):
 ::declare filltmp:
-:fillpos gt "0"        'if parameter exists:filltmp=mid(parms,fillpos+"6",descpos-(fillpos+"6")):
-::fill="N":
-:filltmp eq "on":fill = "Y":
-:                        'last param, so read to end of string:desc=mid(parms,descpos+"6",len(parms)-descpos):
+::filltmp=mid(parms,fillpos+"6",descpos-(fillpos+"6")):
+:filltmp eq "false":fill="N":
+:filltmp eq "true":fill = "Y":
+:                        'last param, so read to end of string:desc=mid(parms,descpos+"6",cachepos-(descpos+"6")):
 ::return:
